@@ -1,6 +1,6 @@
 # synapse
 
-`textual semantic inferencing library`
+`textual semantics library`
 
 ## Roadmap
 
@@ -8,3 +8,4 @@
 
 + `2021-10-22` is a date
 + `$20` is a value in USD
++ `20mph` is a value in miles per hour
