@@ -7,16 +7,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Unit int
 
-var units = []string{
+var Units = []string{
 	METERS: "m",
 }
 
 func (u Unit) String() string {
-	return units[u]
+	return Units[u]
 }
 
 const (
@@ -26,7 +27,11 @@ const (
 
 type ResultType int
 
-var results = []string{}
+var results = []string{
+	LINK:     "link",
+	QUANTITY: "quantity",
+	DATE:     "date",
+}
 
 func (r ResultType) String() string {
 	return results[r]
@@ -53,7 +58,7 @@ type Result struct {
 
 func hasUnit(s string) (Unit, bool) {
 	s = strings.ToLower(s)
-	for i, v := range units {
+	for i, v := range Units {
 		if strings.Contains(s, v) {
 			return Unit(i), true
 		}
@@ -63,6 +68,7 @@ func hasUnit(s string) (Unit, bool) {
 }
 
 var NUM_REGEXP = regexp.MustCompile(`\d+`)
+var SINGLE_NUMBER_REGEXP = regexp.MustCompile(`\d`)
 var UNIT_TYPE_REGEXP = regexp.MustCompile(`[a-zA-Z]+`)
 var UNIT_EXTRACT_REGEXP = regexp.MustCompile(`\d+\s?[A-Z..a-z]+`)
 
@@ -87,11 +93,27 @@ func extractUnit(s string) (Unit, string) {
 }
 
 func Determine(s string) (Result, error) {
-	if u, ok := url.Parse(s); ok == nil {
+	if strings.HasPrefix(s, "http") {
+		fmt.Println(s)
+		if u, ok := url.Parse(s); ok == nil {
+			return Result{
+				ResultType: LINK,
+				Value:      u.String(),
+			}, nil
+		}
+	}
+
+	// time.Parse() will error if the first argument comes after or at the same time as the second argument
+	// todo: find way to implement more kinds of date formats
+	if t, ok := time.Parse(time.Kitchen, s); ok == nil {
 		return Result{
-			ResultType: LINK,
-			Value:      u.String(),
+			Label:      "",
+			Unit:       0,
+			ResultType: DATE,
+			Value:      t.String(),
 		}, nil
+	} else if ok != nil {
+		return Result{}, ok
 	}
 
 	if u, ok := hasUnit(s); ok {

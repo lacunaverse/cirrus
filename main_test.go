@@ -1,6 +1,8 @@
 package synapse
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestURL(t *testing.T) {
 	v, err := Determine("https://github.com/")
@@ -24,6 +26,14 @@ func TestHasUnit(t *testing.T) {
 func TestExtractUnit(t *testing.T) {
 	un, value := extractUnit("length of 10m")
 	if un != METERS && value != "10" {
+		t.Fail()
+	}
+}
+
+func TestDate(t *testing.T) {
+	d, err := Determine("5:18PM")
+
+	if err != nil || d.ResultType != DATE {
 		t.Fail()
 	}
 }
