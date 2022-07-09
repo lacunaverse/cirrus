@@ -31,7 +31,7 @@ func TestExtractUnit(t *testing.T) {
 }
 
 func TestDate(t *testing.T) {
-	d, err := Determine("5:18PM")
+	d, err := Determine("3/12/21")
 
 	if err != nil || d.ResultType != DATE {
 		t.Fail()

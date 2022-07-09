@@ -2,12 +2,12 @@ package synapse
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/araddon/dateparse"
 )
 
 type Unit int
@@ -86,7 +86,6 @@ func extractUnit(s string) (Unit, string) {
 				return Unit(uInt), value
 			}
 		}
-		fmt.Println(v)
 	}
 
 	return 0, ""
@@ -94,7 +93,6 @@ func extractUnit(s string) (Unit, string) {
 
 func Determine(s string) (Result, error) {
 	if strings.HasPrefix(s, "http") {
-		fmt.Println(s)
 		if u, ok := url.Parse(s); ok == nil {
 			return Result{
 				ResultType: LINK,
@@ -103,9 +101,9 @@ func Determine(s string) (Result, error) {
 		}
 	}
 
-	// time.Parse() will error if the first argument comes after or at the same time as the second argument
-	// todo: find way to implement more kinds of date formats
-	if t, ok := time.Parse(time.Kitchen, s); ok == nil {
+	// check for dates
+	// todo: fix/check timezone implementation
+	if t, ok := dateparse.ParseAny(s); ok == nil {
 		return Result{
 			Label:      "",
 			Unit:       0,
