@@ -1,4 +1,4 @@
-module synapse
+module github.com/lacunaverse/cirrus
 
 go 1.18
 

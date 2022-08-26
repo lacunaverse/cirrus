@@ -1,11 +1,11 @@
-package synapse
+package cirrus
 
 import (
 	"testing"
 )
 
 func TestURL(t *testing.T) {
-	v, err := Determine("https://github.com/")
+	v, err := Recognize("https://github.com/")
 	if err != nil {
 		t.Fail()
 	}
@@ -13,6 +13,10 @@ func TestURL(t *testing.T) {
 	if v.Value != "https://github.com/" && v.ResultType != LINK {
 		t.Fail()
 	}
+}
+
+func TestClean(t *testing.T) {
+	clean()
 }
 
 func TestHasUnit(t *testing.T) {
@@ -31,7 +35,7 @@ func TestExtractUnit(t *testing.T) {
 }
 
 func TestDate(t *testing.T) {
-	d, err := Determine("3/12/21")
+	d, err := Recognize("3/12/21")
 
 	if err != nil || d.ResultType != DATE {
 		t.Fail()
