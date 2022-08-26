@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>cirrus demo</title>
+    </head>
+
+    <body>
+        <div contenteditable="true">
+            This is a test.
+        </div>
+        <input type="button" value="Analyze" />
+        <script>
+            const d = document.body.querySelector('div');
+            const req = async () => {
+                try {
+                    const req = await fetch('/analyze', {
+                        method: 'post',
+                        body: JSON.stringify({ data: d.innerText }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+
+                    if (req.status != 200) {
+                        throw req.statusText;
+                    }
+
+                    const resp = await req.json();
+                    if (resp.error) {
+                        throw resp.error;
+                    }
+                } catch (err) {
+                    console.error(err)
+                }
+            }
+
+            const sub = document.body.querySelector('input[type="button"]');
+            sub.addEventListener('click', () => req());
+        </script>
+    </body>
+
+</html>

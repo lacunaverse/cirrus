@@ -12,6 +12,101 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lacunaverse/cirrus"
 )
+
+type Templates struct {
+	index  *template.Template
+	errors *template.Template
+}
+
+type NotFound struct {
+}
+
+func (t *Templates) Render(w io.Writer, name string, data interface{}, cat string) error {
+	switch cat {
+	case "index":
+		return t.index.ExecuteTemplate(w, name, data)
+	case "errors":
+		return t.errors.ExecuteTemplate(w, name, data)
+	default:
+		return t.errors.ExecuteTemplate(w, name, data)
+	}
+}
+
+func (n NotFound) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	t.Render(w, "error.html", "", "errors")
+}
+
+var t = &Templates{
+	index:  template.Must(template.ParseFiles("views/index.html")),
+	errors: template.Must(template.ParseFiles("views/error.html")),
+}
+
+// Index route
+func Index(w http.ResponseWriter, r *http.Request) {
+	t.Render(w, "index.html", "", "index")
+}
+
+type Error struct {
+	Error string `json:"error"`
+}
+
+func sendError(w http.ResponseWriter, err string) {
+	w.WriteHeader(http.StatusBadRequest)
+	w.Header().Add("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	encoder.Encode(&Error{Error: err})
+}
+
+type AnalysisRequest struct {
+	Data string `json:"data"`
+}
+
+func tokenize(text string) []string {
+	return strings.FieldsFunc(text, func(r rune) bool {
+		return !unicode.IsNumber(r) && !unicode.IsLetter(r)
+	})
+}
+
+type AnalysisResponse struct {
+	Data []*cirrus.Result `json:"data"`
+}
+
+func Analyze(w http.ResponseWriter, r *http.Request) {
+	req := &AnalysisRequest{}
+	decoder := json.NewDecoder(r.Body)
+
+	err := decoder.Decode(req)
+	if err != nil {
+		sendError(w, "Invalid response.")
+		return
+	}
+
+	toks := tokenize(req.Data)
+	results := []*cirrus.Result{}
+	for _, v := range toks {
+		res, err := cirrus.Determine(v)
+		if err != nil {
+			if err == cirrus.ErrNoExtract {
+				continue
+			} else {
+				sendError(w, err.Error())
+				return
+			}
+		}
+
+		results = append(results, res)
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	enc := json.NewEncoder(w)
+	res := &AnalysisResponse{
+		Data: results,
+	}
+	enc.Encode(res)
+}
+
 func main() {
 	r := mux.NewRouter()
 
