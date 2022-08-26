@@ -1,27 +1,39 @@
-package synapse
+package cirrus
 
 import (
+	"bytes"
 	"errors"
+	"io/ioutil"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/araddon/dateparse"
 )
 
 type Unit int
 
-var Units = []string{
-	METERS: "m",
+var Units = [][]string{
+	NO_UNIT: {"none"},
+	// metric
+	METERS: {"meters", "m"},
+
+	// imperial
+	FEET: {"feet", "ft"},
 }
 
 func (u Unit) String() string {
-	return Units[u]
+	return Units[u][0]
 }
 
 const (
-	METERS = iota
+	NO_UNIT = iota
+	// metric
+	METERS
+
+	FEET
 	// todo: other units
 )
 
@@ -38,29 +50,37 @@ func (r ResultType) String() string {
 }
 
 const (
-	LINK = iota
+	NONE = iota
+	LINK
 	QUANTITY
 	DATE
+	ORG
+	CARDINAL
+	MONEY
+	EVENT
 )
 
-//
 type Result struct {
 	// type of result
-	ResultType ResultType
+	ResultType ResultType `json:"type"`
 	// title/label of the unit, as in with graphs
 	// e.g. "Number of Queries Per Second"
-	Label string
+	Label string `json:"label"`
 	// unit, if applicable
-	Unit Unit
+	Unit Unit `json:"unit"`
 	// value
-	Value string
+	Value string `json:"value"`
+	Start uint
+	End   uint
 }
 
 func hasUnit(s string) (Unit, bool) {
 	s = strings.ToLower(s)
 	for i, v := range Units {
-		if strings.Contains(s, v) {
-			return Unit(i), true
+		for _, name := range v {
+			if strings.Contains(s, name) {
+				return Unit(i), true
+			}
 		}
 	}
 
@@ -91,10 +111,13 @@ func extractUnit(s string) (Unit, string) {
 	return 0, ""
 }
 
-func Determine(s string) (Result, error) {
-	if strings.HasPrefix(s, "http") {
-		if u, ok := url.Parse(s); ok == nil {
-			return Result{
+var (
+	ErrNoExtract = errors.New("couldn't determine meaning")
+)
+func Recognize(text string) (*Result, error) {
+	if strings.HasPrefix(text, "http") {
+		if u, ok := url.Parse(text); ok == nil {
+			return &Result{
 				ResultType: LINK,
 				Value:      u.String(),
 			}, nil
@@ -103,26 +126,25 @@ func Determine(s string) (Result, error) {
 
 	// check for dates
 	// todo: fix/check timezone implementation
-	if t, ok := dateparse.ParseAny(s); ok == nil {
-		return Result{
+	if t, ok := dateparse.ParseAny(text); ok == nil {
+		return &Result{
 			Label:      "",
 			Unit:       0,
 			ResultType: DATE,
 			Value:      t.String(),
 		}, nil
-	} else if ok != nil {
-		return Result{}, ok
 	}
 
-	if u, ok := hasUnit(s); ok {
-		_, val := extractUnit(s)
+	if u, ok := hasUnit(text); ok {
+		_, val := extractUnit(text)
 
-		return Result{
+		return &Result{
 			ResultType: QUANTITY,
 			Unit:       u,
 			Value:      val,
 		}, nil
 	}
 
-	return Result{}, errors.New("couldn't determine meaning")
+	return &Result{}, ErrNoExtract
+}
 }
