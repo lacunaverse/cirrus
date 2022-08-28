@@ -97,15 +97,23 @@ type Result struct {
 
 func hasUnit(s string) (Unit, bool) {
 	s = strings.ToLower(s)
+
+// Determines whether a token is a quantity or not
+func hasUnit(token string) (Unit, bool) {
+	token = strings.ToLower(token)
 	for i, v := range Units {
+		if i == NONE {
+			continue
+		}
+
 		for _, name := range v {
-			if strings.Contains(s, name) {
+			if strings.HasSuffix(token, name) {
 				return Unit(i), true
 			}
 		}
 	}
 
-	return -1, false
+	return NO_UNIT, false
 }
 
 var NUM_REGEXP = regexp.MustCompile(`\d+`)
