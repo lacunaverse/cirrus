@@ -1,7 +1,6 @@
 package cirrus
 
 import (
-	"bytes"
 	"errors"
 	"io/ioutil"
 	"net/url"
@@ -116,23 +115,33 @@ func hasUnit(token string) (Unit, bool) {
 	return NO_UNIT, false
 }
 
+// Matches any sequence of one or more numbers
 var NUM_REGEXP = regexp.MustCompile(`\d+`)
+
+// Matches a single number
 var SINGLE_NUMBER_REGEXP = regexp.MustCompile(`\d`)
+
+// Matches one or more letters, used as a filter for determining the unit
 var UNIT_TYPE_REGEXP = regexp.MustCompile(`[a-zA-Z]+`)
+
+// Matches one or more numbers followed by optional whitespace and a sequence of one or more letters, used for
+// determining whether a string may be a quantity or not.
 var UNIT_EXTRACT_REGEXP = regexp.MustCompile(`\d+\s?[A-Z..a-z]+`)
 
+// Attempts to extract a unit from a given string.
+// Matches take the form of `{num}{unit}`, with optional whitespace in between.
+// Examples: `10 feet` `1ft` `1200inches`
 func extractUnit(s string) (Unit, string) {
-	if UNIT_EXTRACT_REGEXP.Match([]byte(s)) {
+	if UNIT_EXTRACT_REGEXP.MatchString(s) {
 		v := UNIT_EXTRACT_REGEXP.FindString(s)
-		vb := []byte(v)
 
-		if NUM_REGEXP.Match(vb) && UNIT_TYPE_REGEXP.Match(vb) {
+		if NUM_REGEXP.MatchString(v) && UNIT_TYPE_REGEXP.MatchString(v) {
 			unit := UNIT_TYPE_REGEXP.FindString(v)
 			value := NUM_REGEXP.FindString(v)
 
-			uInt, err := strconv.Atoi(unit)
+			unitInt, err := strconv.Atoi(unit)
 			if err != nil {
-				return Unit(uInt), value
+				return Unit(unitInt), value
 			}
 		}
 	}
@@ -143,37 +152,60 @@ func extractUnit(s string) (Unit, string) {
 var (
 	ErrNoExtract = errors.New("couldn't determine meaning")
 )
-func Recognize(text string) (*Result, error) {
-	if strings.HasPrefix(text, "http") {
-		if u, ok := url.Parse(text); ok == nil {
-			return &Result{
-				ResultType: LINK,
-				Value:      u.String(),
-			}, nil
-		}
-	}
 
-	// check for dates
-	// todo: fix/check timezone implementation
-	if t, ok := dateparse.ParseAny(text); ok == nil {
-		return &Result{
-			Label:      "",
-			Unit:       0,
-			ResultType: DATE,
-			Value:      t.String(),
-		}, nil
-	}
-
-	if u, ok := hasUnit(text); ok {
-		_, val := extractUnit(text)
-
-		return &Result{
-			ResultType: QUANTITY,
-			Unit:       u,
-			Value:      val,
-		}, nil
-	}
-
-	return &Result{}, ErrNoExtract
+func splitter(text string) []string {
+	return strings.FieldsFunc(text, func(r rune) bool {
+		return unicode.IsControl(r) || unicode.IsSpace(r) || r == ';' || r == ',' || r == '!'
+	})
 }
+
+var NoTokenizers txt.Tokenizer = func(tokens []string) []string { return tokens }
+
+func Recognize(text string) ([]*Result, error) {
+	results := []*Result{}
+
+	for _, v := range txt.Tokenize(text, splitter, NoTokenizers) {
+		if strings.HasPrefix(v, "http") {
+			if u, ok := url.Parse(v); ok == nil {
+				r := &Result{
+					ResultType: LINK,
+					Value:      u.String(),
+				}
+				results = append(results, r)
+
+				continue
+			}
+		}
+
+		// check for dates
+		// todo: fix/check timezone implementation
+		if t, ok := dateparse.ParseAny(v); ok == nil {
+			r := &Result{
+				Label:      "",
+				Unit:       0,
+				ResultType: DATE,
+				Value:      t.String(),
+			}
+
+			results = append(results, r)
+
+			continue
+		}
+
+		if u, ok := hasUnit(v); ok {
+			_, val := extractUnit(v)
+			r := &Result{
+				ResultType: QUANTITY,
+				Unit:       u,
+				Value:      val,
+			}
+
+			results = append(results, r)
+
+			continue
+		}
+
+	}
+
+	return results, nil
 }
