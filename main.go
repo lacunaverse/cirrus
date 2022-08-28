@@ -2,7 +2,6 @@ package cirrus
 
 import (
 	"errors"
-	"io/ioutil"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -94,8 +93,6 @@ type Result struct {
 	End   uint
 }
 
-func hasUnit(s string) (Unit, bool) {
-	s = strings.ToLower(s)
 
 // Determines whether a token is a quantity or not
 func hasUnit(token string) (Unit, bool) {
@@ -205,6 +202,21 @@ func Recognize(text string) ([]*Result, error) {
 			continue
 		}
 
+		if CARDINALITY_DICT.Contains(v) {
+			r := &Result{
+				ResultType: CARDINAL,
+				Value:      v,
+			}
+
+			results = append(results, r)
+			continue
+		}
+
+		r := &Result{
+			ResultType: NONE,
+			Value:      v,
+		}
+		results = append(results, r)
 	}
 
 	return results, nil
