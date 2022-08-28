@@ -10,8 +10,29 @@ import (
 	"strings"
 	"unicode"
 
+	_ "embed"
+
 	"github.com/araddon/dateparse"
+	"github.com/hvlck/txt"
 )
+
+var (
+	//go:embed data/cardinality.txt
+	CARDINALITY_DICT_EMBED string
+	CARDINALITY_DICT       = LoadDictionary(CARDINALITY_DICT_EMBED)
+)
+
+// Loads a dictionary from an embeded newline-delimited dictionary file.
+// The dictionary words are placed in a trie.
+func LoadDictionary(data string) *txt.Node {
+	t := txt.NewTrie()
+
+	for _, v := range strings.Split(data, "\n") {
+		t.Insert(v, nil)
+	}
+
+	return t
+}
 
 type Unit int
 
