@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
-	github.com/hvlck/txt v0.0.0-20220824015102-331588ccb251 // indirect
+	github.com/hvlck/txt v0.0.0-20220828000727-b337f9b83a30 // indirect
 )
 
 require (
@@ -13,3 +13,5 @@ require (
 )
 
 replace github.com/lacunaverse/cirrus => ../
+
+replace github.com/lacunaverse/txt => ../../
