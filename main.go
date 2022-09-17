@@ -40,7 +40,11 @@ var Units = [][]string{
 	METERS: {"meters", "m"},
 
 	// imperial
-	FEET: {"feet", "ft"},
+	INCHES: {"inches", "in"},
+	FEET:   {"feet", "ft", "foot"},
+	MILES:  {"mile", "mi"},
+
+	TIME: {"minute", "second", "hour", "day"},
 }
 
 func (u Unit) String() string {
@@ -52,8 +56,12 @@ const (
 	// metric
 	METERS
 
+	INCHES
 	FEET
+	MILES
 	// todo: other units
+
+	TIME
 )
 
 type ResultType int
@@ -62,6 +70,10 @@ var results = []string{
 	LINK:     "link",
 	QUANTITY: "quantity",
 	DATE:     "date",
+	ORG:      "org",
+	CARDINAL: "cardinal",
+	MONEY:    "monetary",
+	EVENT:    "event",
 }
 
 func (r ResultType) String() string {
@@ -93,6 +105,9 @@ type Result struct {
 	End   uint
 }
 
+func matchProper(s string) {
+
+}
 
 // Determines whether a token is a quantity or not
 func hasUnit(token string) (Unit, bool) {
@@ -103,13 +118,21 @@ func hasUnit(token string) (Unit, bool) {
 		}
 
 		for _, name := range v {
-			if strings.HasSuffix(token, name) {
+			if len(name) <= 2 {
+				if token == name {
+					return Unit(i), true
+				}
+
+				continue
+			}
+
+			if strings.HasPrefix(token, name) {
 				return Unit(i), true
 			}
 		}
 	}
 
-	return NO_UNIT, false
+	return NONE, false
 }
 
 // Matches any sequence of one or more numbers
@@ -143,7 +166,14 @@ func extractUnit(s string) (Unit, string) {
 		}
 	}
 
-	return 0, ""
+	return NONE, ""
+}
+
+var currencies = map[string]bool{
+	"$": true,
+	"¥": true,
+	"£": true,
+	"€": true,
 }
 
 var (
@@ -161,7 +191,8 @@ var NoTokenizers txt.Tokenizer = func(tokens []string) []string { return tokens 
 func Recognize(text string) ([]*Result, error) {
 	results := []*Result{}
 
-	for _, v := range txt.Tokenize(text, splitter, NoTokenizers) {
+	tokens := txt.Tokenize(text, splitter, txt.FilterStopwords)
+	for idx, v := range tokens {
 		if strings.HasPrefix(v, "http") {
 			if u, ok := url.Parse(v); ok == nil {
 				r := &Result{
@@ -189,12 +220,42 @@ func Recognize(text string) ([]*Result, error) {
 			continue
 		}
 
-		if u, ok := hasUnit(v); ok {
-			_, val := extractUnit(v)
+		if unicode.IsUpper(rune(v[0])) {
+			// if prop, ok := MatchProper(v); ok {
+
+			// }
+		} else if unicode.IsNumber(rune(v[0])) {
+			i := 0
+			for _, char := range v {
+				if unicode.IsNumber(char) {
+					i++
+					continue
+				}
+
+				break
+			}
+
+			if len(v) >= i+1 {
+				i = i + 1
+			}
+
 			r := &Result{
-				ResultType: QUANTITY,
-				Unit:       u,
-				Value:      val,
+				ResultType: CARDINAL,
+				Value:      v[:i],
+			}
+
+			if len(tokens) > idx+1 {
+				if un, ok := hasUnit(tokens[idx+1]); ok {
+					r := &Result{
+						ResultType: QUANTITY,
+						Unit:       un,
+						Value:      v[:i],
+					}
+
+					results = append(results, r)
+
+					continue
+				}
 			}
 
 			results = append(results, r)
@@ -206,6 +267,30 @@ func Recognize(text string) ([]*Result, error) {
 			r := &Result{
 				ResultType: CARDINAL,
 				Value:      v,
+			}
+
+			results = append(results, r)
+			continue
+		}
+
+		if _, ok := currencies[string(v[0])]; ok {
+			i := 0
+			for _, char := range v[1:] {
+				if unicode.IsNumber(char) {
+					i++
+					continue
+				}
+
+				break
+			}
+
+			if len(v) >= i+1 {
+				i = i + 1
+			}
+
+			r := &Result{
+				ResultType: MONEY,
+				Value:      v[:i],
 			}
 
 			results = append(results, r)

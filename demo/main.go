@@ -81,20 +81,9 @@ func Analyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	toks := tokenize(req.Data)
-	results := []*cirrus.Result{}
-	for _, v := range toks {
-		res, err := cirrus.Determine(v)
-		if err != nil {
-			if err == cirrus.ErrNoExtract {
-				continue
-			} else {
-				sendError(w, err.Error())
-				return
-			}
-		}
-
-		results = append(results, res)
+	results, err := cirrus.Recognize(req.Data)
+	if err != nil {
+		sendError(w, err.Error())
 	}
 
 	w.Header().Add("Content-Type", "application/json")
