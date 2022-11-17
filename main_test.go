@@ -2,6 +2,7 @@ package cirrus
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hvlck/txt"
 )
@@ -20,7 +21,7 @@ func TestTokenizer(t *testing.T) {
 	}
 
 	for index, v := range examples {
-		tokenized := txt.Tokenize(v, splitter, NoTokenizers)
+		tokenized := txt.Tokenize(v, splitter, []txt.Normalizer{noNormalizer}, noTokenizers)
 		for idx, tok := range tokenized {
 			if expected[index][idx] != tok {
 				t.Fatalf("expected %v, got %v", expected[index][idx], tok)
@@ -35,6 +36,10 @@ func TestRecognize(t *testing.T) {
 		"length of 20m",
 		"on 2/11/2015, something happened",
 		"two dozen",
+		"$20",
+		"10.22",
+		"10e12",
+		"5e-3",
 	}
 
 	output := [][]Result{
@@ -64,7 +69,7 @@ func TestRecognize(t *testing.T) {
 			{
 				ResultType: QUANTITY,
 				Value:      "20",
-				Unit:       METERS,
+				Data:       &UnitValue{Value: METERS},
 			},
 		},
 		{
@@ -74,7 +79,7 @@ func TestRecognize(t *testing.T) {
 			},
 			{
 				ResultType: DATE,
-				Value:      "2/11/2015",
+				Value:      time.Date(2015, 2, 11, 0, 0, 0, 0, time.UTC).String(),
 			},
 			{
 				ResultType: NONE,
@@ -95,6 +100,34 @@ func TestRecognize(t *testing.T) {
 				Value:      "dozen",
 			},
 		},
+		{
+			{
+				ResultType: MONEY,
+				Value:      "$",
+			},
+			{
+				ResultType: QUANTITY,
+				Value:      "20",
+			},
+		},
+		{
+			{
+				ResultType: QUANTITY,
+				Value:      "10.22",
+			},
+		},
+		{
+			{
+				ResultType: QUANTITY,
+				Value:      "10e12",
+			},
+		},
+		{
+			{
+				ResultType: QUANTITY,
+				Value:      "5e-3",
+			},
+		},
 	}
 
 	for index, v := range examples {
@@ -105,13 +138,13 @@ func TestRecognize(t *testing.T) {
 		}
 
 		if len(result) != len(expected) {
-			t.Fatalf("expected length of result to be %v, got %v, for example '%v'", len(expected), len(result), v)
+			t.Fatalf("expected length of result to be %v, got %v for example '%v'", len(expected), len(result), v)
 		}
 
 		for idx, token := range result {
 			expTok := expected[idx]
 			if token.ResultType != expTok.ResultType || token.Label != expTok.Label {
-				t.Fatalf("expected %v, got %v", expTok, token)
+				t.Fatalf("expected %v, got %v for example '%v'", expTok, token, v)
 			}
 		}
 	}
@@ -129,10 +162,20 @@ func TestURL(t *testing.T) {
 }
 
 func TestHasUnit(t *testing.T) {
-	v, exists := hasUnit("length of 10m")
+	units := []struct {
+		string
+		Unit
+	}{
+		{"m", METERS},
+		{"meters", METERS},
+		{"ft", FEET},
+	}
 
-	if !exists || v != METERS {
-		t.Fail()
+	for _, v := range units {
+		unit, exists := hasUnit(v.string)
+		if !exists || v.Unit != unit {
+			t.Fail()
+		}
 	}
 }
 

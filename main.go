@@ -34,6 +34,7 @@ func LoadDictionary(data string) *txt.Node {
 
 type Unit int
 
+// Recognized units.
 var Units = [][]string{
 	NO_UNIT: {"none"},
 	// metric
@@ -91,18 +92,27 @@ const (
 	EVENT
 )
 
+type dataType interface {
+	dataType()
+}
+
+type UnitValue struct {
+	Value Unit
+}
+
+func (u *UnitValue) dataType() {}
+
 type Result struct {
 	// type of result
 	ResultType ResultType `json:"type"`
 	// title/label of the unit, as in with graphs
 	// e.g. "Number of Queries Per Second"
 	Label string `json:"label"`
-	// unit, if applicable
-	Unit Unit `json:"unit"`
+	// Custom data
+	Data dataType `json:"data"`
 	// value
-	Value string `json:"value"`
-	Start uint
-	End   uint
+	Value      string `json:"value"`
+	Start, End uint
 }
 
 func matchProper(s string) {
@@ -112,12 +122,12 @@ func matchProper(s string) {
 // Determines whether a token is a quantity or not
 func hasUnit(token string) (Unit, bool) {
 	token = strings.ToLower(token)
-	for i, v := range Units {
+	for i, abbreviations := range Units {
 		if i == NONE {
 			continue
 		}
 
-		for _, name := range v {
+		for _, name := range abbreviations {
 			if len(name) <= 2 {
 				if token == name {
 					return Unit(i), true
@@ -169,6 +179,20 @@ func extractUnit(s string) (Unit, string) {
 	return NONE, ""
 }
 
+func isUrl(token string) *Result {
+	if strings.HasPrefix(token, "http") {
+		if u, ok := url.Parse(token); ok == nil {
+			r := &Result{
+				ResultType: LINK,
+				Value:      u.String(),
+			}
+			return r
+		}
+	}
+
+	return nil
+}
+
 var currencies = map[string]bool{
 	"$": true,
 	"¥": true,
@@ -186,31 +210,32 @@ func splitter(text string) []string {
 	})
 }
 
-var NoTokenizers txt.Tokenizer = func(tokens []string) []string { return tokens }
+// Does nothing, just gets around a bug in txt with passing a nil tokenizer to txt.Tokenize.
+var noTokenizers txt.Tokenizer = func(tokens []string) []string { return tokens }
+var noNormalizer txt.Normalizer = func(s string) string { return s }
 
+// Recognizes entities within a piece of natural text.
 func Recognize(text string) ([]*Result, error) {
 	results := []*Result{}
 
-	tokens := txt.Tokenize(text, splitter, txt.FilterStopwords)
+	tokens := txt.Tokenize(text, splitter, []txt.Normalizer{noNormalizer}, noTokenizers)
 	for idx, v := range tokens {
-		if strings.HasPrefix(v, "http") {
-			if u, ok := url.Parse(v); ok == nil {
-				r := &Result{
-					ResultType: LINK,
-					Value:      u.String(),
-				}
-				results = append(results, r)
-
-				continue
-			}
+		// checks if token is URL
+		url := isUrl(v)
+		if url != nil {
+			results = append(results, url)
+			continue
 		}
 
 		// check for dates
 		// todo: fix/check timezone implementation
-		if t, ok := dateparse.ParseAny(v); ok == nil {
+		// != 1 test case for decimal numbers. These take precedence over dates.
+		if t, ok := dateparse.ParseAny(v); ok == nil && strings.Count(v, ".") != 1 {
 			r := &Result{
-				Label:      "",
-				Unit:       0,
+				Label: "",
+				Data: &UnitValue{
+					Value: 0,
+				},
 				ResultType: DATE,
 				Value:      t.String(),
 			}
@@ -220,11 +245,12 @@ func Recognize(text string) ([]*Result, error) {
 			continue
 		}
 
-		if unicode.IsUpper(rune(v[0])) {
+		ch := rune(v[0])
+		if unicode.IsUpper(ch) {
 			// if prop, ok := MatchProper(v); ok {
 
 			// }
-		} else if unicode.IsNumber(rune(v[0])) {
+		} else if unicode.IsNumber(ch) {
 			i := 0
 			for _, char := range v {
 				if unicode.IsNumber(char) {
@@ -240,7 +266,7 @@ func Recognize(text string) ([]*Result, error) {
 			}
 
 			r := &Result{
-				ResultType: CARDINAL,
+				ResultType: QUANTITY,
 				Value:      v[:i],
 			}
 
@@ -248,8 +274,10 @@ func Recognize(text string) ([]*Result, error) {
 				if un, ok := hasUnit(tokens[idx+1]); ok {
 					r := &Result{
 						ResultType: QUANTITY,
-						Unit:       un,
-						Value:      v[:i],
+						Data: &UnitValue{
+							Value: un,
+						},
+						Value: v[:i],
 					}
 
 					results = append(results, r)
@@ -290,10 +318,15 @@ func Recognize(text string) ([]*Result, error) {
 
 			r := &Result{
 				ResultType: MONEY,
-				Value:      v[:i],
+				Value:      string(v[0]),
 			}
 
-			results = append(results, r)
+			quantity := &Result{
+				ResultType: QUANTITY,
+				Value:      v[0:i],
+			}
+
+			results = append(results, r, quantity)
 			continue
 		}
 

@@ -31,7 +31,7 @@ func Classify(text string) []Topic {
 
 	words := make(map[string]int)
 
-	tokens := txt.Tokenize(text, txt.DefaultSplitter, txt.TokenizerStopwords)
+	tokens := txt.Tokenize(text, txt.DefaultSplitter, nil, txt.TokenizerStopwords)
 	for _, v := range tokens {
 		if occurences, ok := words[v]; ok {
 			words[v] = occurences + 1

@@ -18,7 +18,6 @@ seventeen
 eighteen
 nineteen
 twenty
-twenty
 thirty
 fourty
 fifty
@@ -33,9 +32,9 @@ billion
 trillion
 quadrillion
 quintillion
+baker's dozen
 dozen
 couple
-i
 v
 x
 l
