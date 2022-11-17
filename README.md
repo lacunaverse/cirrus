@@ -10,6 +10,8 @@ Cirrus tries to parse tokens into various values based on pretty simple heuristi
 
 + grouping of sequential entities
   + e.g. sequential cardinals can be grouped, `two dozen` becomes `Result{Value: 24}`
++ text classification
+  + use wordnet?
 
 ## Examples
 
@@ -20,3 +22,69 @@ Cirrus tries to parse tokens into various values based on pretty simple heuristi
 + `Charles Dickens` is a `person`
 + `Microsoft` or `MSFT` is a `company`
 + `Australia` is a `country`
+
+### Numbers
+
+```text
+1.2
+10e-3
+1.00001
+20E10
+15
+2/3
+one
+two thousand three hundred seventy five
+```
+
+### Dates
+
+```text
+Christmas eve
+10/22/15
+10.22.15
+2005
+december 5 2005 // variations thereof
+```
+
+### Times
+
+```text
+12:10
+ten minutes and five seconds
+```
+
+### Phone Numbers
+
+```text
+
+```
+
+### Addresses
+
+### Email Addresses
+
++ probably best to use an established regexp for this
+
+### Web Addresses
+
++ best to use an established regexp or std's `url.Parse`
+
+### Tables
+
+```text
+| name | age |
+| john | 2 |
+| jane | 12 |
+
+name,age
+john,2
+jane,12
+
+name age
+"john" 2
+"jane" 12
+
+name    age
+john    2
+jane    12
+```

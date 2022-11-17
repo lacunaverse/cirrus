@@ -258,6 +258,10 @@ func Recognize(text string) ([]*Result, error) {
 					continue
 				}
 
+				if char == '-' || unicode.ToLower(char) == 'e' {
+					continue
+				}
+
 				break
 			}
 
